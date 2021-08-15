@@ -1,6 +1,6 @@
 # Цель: создать пространственные матрицы на основе SCI
-# Inputs:  borrowed_raw_data/eurobarometer_regress_dat.dta
-#          raw_data/gadm1_nuts2_gadm1_nuts2_Aug2020.tsv
+# Inputs:  raw_data/gadm1_nuts2_gadm1_nuts2_Aug2020.tsv
+#          final_data/trust_in_EU.xlsx
 #          final_data/early_leavers_from_edu.xlsx
 #          final_data/world_values_survey.xlsx
 #          final_data/anti_EU_votes.xlsx
@@ -15,14 +15,13 @@
 
 
 
-library(plyr)
 library(haven)
 library(tidyverse)
 library(xlsx)
 library(readxl)
 
 
-# функция для выбора NUTS2 тех регионов, которые NUTS1 в eurobarometer_regress_dat
+# функция для выбора NUTS2 тех регионов, которые NUTS1 в наборах данных
 is.NUTS1_subregion <- function(region, NUTS1) {
   subset_vec <- c()
   for (i in 1:length(region)) {
@@ -38,12 +37,12 @@ is.NUTS1_subregion <- function(region, NUTS1) {
 }
 
 
-eurobarometer_regress_dat <- read_excel("final_data/trust_in_EU.xlsx") %>% 
-  select(-1)
-
-
 # данные для пространственной матрицы на основе SCI
 raw_SCI <- read.table("raw_data/gadm1_nuts2_gadm1_nuts2_Aug2020.tsv", sep = '\t', header = TRUE)
+
+
+eurobarometer_regress_dat <- read_excel("final_data/trust_in_EU.xlsx") %>% 
+  select(-1)
 
 
 # все используемые коды NUTS2
@@ -64,6 +63,45 @@ for_SCI_matrix <- raw_SCI %>%
            (is.element(fr_loc, NUTS2_IDs[[1]]) | is.NUTS1_subregion(fr_loc, NUTS1_IDs[[1]])))
 
 
+# данные для взвешивания SCI по населению
+EU_regions_population_2019 <- read_excel("raw_data/EU_regions_population_2019.xlsx", 
+                                         sheet = "Sheet 1", col_types = c("text", 
+                                                                          "numeric", "skip", "skip", "skip"), 
+                                         skip = 10) %>% 
+  rename(NUTS = "GEO (Codes)", population = ...2)
+
+
+# выберем строки, содержащие все нужные коды и создадим популяционные веса
+EU_regions_population_2019 <- EU_regions_population_2019 %>% 
+  filter(is.element(NUTS, NUTS2_IDs[[1]]) | (is.NUTS1_subregion(NUTS, NUTS1_IDs[[1]]) & !is.element(NUTS, NUTS1_IDs[[1]])))
+
+EU_regions_population_2019$group <- EU_regions_population_2019$NUTS %>% str_sub(1, 3)
+
+EU_regions_population_2019 <- EU_regions_population_2019 %>% 
+  group_by(group) %>% 
+  summarise(NUTS = NUTS, population_share = population / sum(population)) %>% 
+  ungroup()
+
+for (i in 1:dim(EU_regions_population_2019)[1]) {
+  if (!is.element(EU_regions_population_2019$group[i], NUTS1_IDs[[1]])) {
+    EU_regions_population_2019$population_share[i] <- 1
+  }
+}
+
+
+# назначим популяционные веса парам регионов
+for_SCI_matrix$population_weight <- NA
+for (i in 1:dim(for_SCI_matrix)[1]) {
+  u_loc <- for_SCI_matrix$user_loc[i]
+  f_loc <- for_SCI_matrix$fr_loc[i]
+  for_SCI_matrix$population_weight[i] <- 
+    (EU_regions_population_2019 %>% filter(NUTS == u_loc))$population_share * 
+    (EU_regions_population_2019 %>% filter(NUTS == f_loc))$population_share
+}
+
+for_SCI_matrix$weighted_sci <- for_SCI_matrix$scaled_sci * for_SCI_matrix$population_weight
+
+
 # сгруппируем нужные NUTS2 регионы в NUTS1
 for_SCI_matrix_grouped <- for_SCI_matrix
 # преобразуем названия нужных NUTS2 в NUTS1
@@ -75,8 +113,12 @@ for (i in 1:dim(for_SCI_matrix_grouped)[1]) {
     for_SCI_matrix_grouped$fr_loc[i] <- str_sub(for_SCI_matrix_grouped$fr_loc[i], 1, 3)
   }
 }
-# просуммируем одинаковые строки по sci_scaled
-for_SCI_matrix_grouped <- ddply(for_SCI_matrix_grouped, .(user_loc, fr_loc), summarise, sci = sum(scaled_sci))
+
+
+# произведём корректную группировку по NUTS1 регионам
+for_SCI_matrix_grouped <- for_SCI_matrix_grouped %>% group_by(user_loc, fr_loc) %>% 
+  summarise(user_loc = user_loc[1], fr_loc = fr_loc[1], sci = sum(weighted_sci)) %>% 
+  ungroup()
 
 
 # наконец, матрица
@@ -181,6 +223,45 @@ for_SCI_matrix <- raw_SCI %>%
            (is.element(fr_loc, NUTS2_IDs[[1]]) | is.NUTS1_subregion(fr_loc, NUTS1_IDs[[1]])))
 
 
+# данные для взвешивания SCI по населению
+EU_regions_population_2019 <- read_excel("raw_data/EU_regions_population_2019.xlsx", 
+                                         sheet = "Sheet 1", col_types = c("text", 
+                                                                          "numeric", "skip", "skip", "skip"), 
+                                         skip = 10) %>% 
+  rename(NUTS = "GEO (Codes)", population = ...2)
+
+
+# выберем строки, содержащие все нужные коды и создадим популяционные веса
+EU_regions_population_2019 <- EU_regions_population_2019 %>% 
+  filter(is.element(NUTS, NUTS2_IDs[[1]]) | (is.NUTS1_subregion(NUTS, NUTS1_IDs[[1]]) & !is.element(NUTS, NUTS1_IDs[[1]])))
+
+EU_regions_population_2019$group <- EU_regions_population_2019$NUTS %>% str_sub(1, 3)
+
+EU_regions_population_2019 <- EU_regions_population_2019 %>% 
+  group_by(group) %>% 
+  summarise(NUTS = NUTS, population_share = population / sum(population)) %>% 
+  ungroup()
+
+for (i in 1:dim(EU_regions_population_2019)[1]) {
+  if (!is.element(EU_regions_population_2019$group[i], NUTS1_IDs[[1]])) {
+    EU_regions_population_2019$population_share[i] <- 1
+  }
+}
+
+
+# назначим популяционные веса парам регионов
+for_SCI_matrix$population_weight <- NA
+for (i in 1:dim(for_SCI_matrix)[1]) {
+  u_loc <- for_SCI_matrix$user_loc[i]
+  f_loc <- for_SCI_matrix$fr_loc[i]
+  for_SCI_matrix$population_weight[i] <- 
+    (EU_regions_population_2019 %>% filter(NUTS == u_loc))$population_share * 
+    (EU_regions_population_2019 %>% filter(NUTS == f_loc))$population_share
+}
+
+for_SCI_matrix$weighted_sci <- for_SCI_matrix$scaled_sci * for_SCI_matrix$population_weight
+
+
 # сгруппируем нужные NUTS2 регионы в NUTS1
 for_SCI_matrix_grouped <- for_SCI_matrix
 # преобразуем названия нужных NUTS2 в NUTS1
@@ -192,20 +273,24 @@ for (i in 1:dim(for_SCI_matrix_grouped)[1]) {
     for_SCI_matrix_grouped$fr_loc[i] <- str_sub(for_SCI_matrix_grouped$fr_loc[i], 1, 3)
   }
 }
-# просуммируем одинаковые строки по sci_scaled
-for_SCI_matrix_grouped <- ddply(for_SCI_matrix_grouped, .(user_loc, fr_loc), summarise, sci = sum(scaled_sci))
+
+
+# произведём корректную группировку по NUTS1 регионам
+for_SCI_matrix_grouped <- for_SCI_matrix_grouped %>% group_by(user_loc, fr_loc) %>% 
+  summarise(user_loc = user_loc[1], fr_loc = fr_loc[1], sci = sum(weighted_sci)) %>% 
+  ungroup()
 
 
 # наконец, матрица
-SCI_matrix_wvs <- tapply(for_SCI_matrix_grouped$sci, for_SCI_matrix_grouped[c("user_loc", "fr_loc")], mean)
-for(i in 1:dim(SCI_matrix_wvs)[1]) {
-  SCI_matrix_wvs[i, i] <- 0
+SCI_matrix <- tapply(for_SCI_matrix_grouped$sci, for_SCI_matrix_grouped[c("user_loc", "fr_loc")], mean)
+for(i in 1:dim(SCI_matrix)[1]) {
+  SCI_matrix[i, i] <- 0
 }
-View(SCI_matrix_wvs)
+View(SCI_matrix)
 
 
 # сохраним результат
-write.xlsx(SCI_matrix_wvs, file = "intermediate_data/SCI_matrix_wvs.xlsx")
+write.xlsx(SCI_matrix, file = "intermediate_data/SCI_matrix_wvs.xlsx")
 
 
 ######################################################################################################
@@ -234,6 +319,45 @@ for_SCI_matrix <- raw_SCI %>%
            (is.element(fr_loc, NUTS2_IDs[[1]]) | is.NUTS1_subregion(fr_loc, NUTS1_IDs[[1]])))
 
 
+# данные для взвешивания SCI по населению
+EU_regions_population_2019 <- read_excel("raw_data/EU_regions_population_2019.xlsx", 
+                                         sheet = "Sheet 1", col_types = c("text", 
+                                                                          "numeric", "skip", "skip", "skip"), 
+                                         skip = 10) %>% 
+  rename(NUTS = "GEO (Codes)", population = ...2)
+
+
+# выберем строки, содержащие все нужные коды и создадим популяционные веса
+EU_regions_population_2019 <- EU_regions_population_2019 %>% 
+  filter(is.element(NUTS, NUTS2_IDs[[1]]) | (is.NUTS1_subregion(NUTS, NUTS1_IDs[[1]]) & !is.element(NUTS, NUTS1_IDs[[1]])))
+
+EU_regions_population_2019$group <- EU_regions_population_2019$NUTS %>% str_sub(1, 3)
+
+EU_regions_population_2019 <- EU_regions_population_2019 %>% 
+  group_by(group) %>% 
+  summarise(NUTS = NUTS, population_share = population / sum(population)) %>% 
+  ungroup()
+
+for (i in 1:dim(EU_regions_population_2019)[1]) {
+  if (!is.element(EU_regions_population_2019$group[i], NUTS1_IDs[[1]])) {
+    EU_regions_population_2019$population_share[i] <- 1
+  }
+}
+
+
+# назначим популяционные веса парам регионов
+for_SCI_matrix$population_weight <- NA
+for (i in 1:dim(for_SCI_matrix)[1]) {
+  u_loc <- for_SCI_matrix$user_loc[i]
+  f_loc <- for_SCI_matrix$fr_loc[i]
+  for_SCI_matrix$population_weight[i] <- 
+    (EU_regions_population_2019 %>% filter(NUTS == u_loc))$population_share * 
+    (EU_regions_population_2019 %>% filter(NUTS == f_loc))$population_share
+}
+
+for_SCI_matrix$weighted_sci <- for_SCI_matrix$scaled_sci * for_SCI_matrix$population_weight
+
+
 # сгруппируем нужные NUTS2 регионы в NUTS1
 for_SCI_matrix_grouped <- for_SCI_matrix
 # преобразуем названия нужных NUTS2 в NUTS1
@@ -245,20 +369,24 @@ for (i in 1:dim(for_SCI_matrix_grouped)[1]) {
     for_SCI_matrix_grouped$fr_loc[i] <- str_sub(for_SCI_matrix_grouped$fr_loc[i], 1, 3)
   }
 }
-# просуммируем одинаковые строки по sci_scaled
-for_SCI_matrix_grouped <- ddply(for_SCI_matrix_grouped, .(user_loc, fr_loc), summarise, sci = sum(scaled_sci))
+
+
+# произведём корректную группировку по NUTS1 регионам
+for_SCI_matrix_grouped <- for_SCI_matrix_grouped %>% group_by(user_loc, fr_loc) %>% 
+  summarise(user_loc = user_loc[1], fr_loc = fr_loc[1], sci = sum(weighted_sci)) %>% 
+  ungroup()
 
 
 # наконец, матрица
-SCI_matrix_anti <- tapply(for_SCI_matrix_grouped$sci, for_SCI_matrix_grouped[c("user_loc", "fr_loc")], mean)
-for(i in 1:dim(SCI_matrix_anti)[1]) {
-  SCI_matrix_anti[i, i] <- 0
+SCI_matrix <- tapply(for_SCI_matrix_grouped$sci, for_SCI_matrix_grouped[c("user_loc", "fr_loc")], mean)
+for(i in 1:dim(SCI_matrix)[1]) {
+  SCI_matrix[i, i] <- 0
 }
-View(SCI_matrix_anti)
+View(SCI_matrix)
 
 
 # сохраним результат
-write.xlsx(SCI_matrix_anti, file = "intermediate_data/SCI_matrix_anti.xlsx")
+write.xlsx(SCI_matrix, file = "intermediate_data/SCI_matrix_anti.xlsx")
 
 
 ######################################################################################################

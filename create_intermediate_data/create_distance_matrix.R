@@ -1,6 +1,6 @@
 # Цель: создать пространственные матрицы на основе расстояний между центроидами регионов
-# Inputs:  borrowed_raw_data/eurobarometer_regress_dat.dta
-#          borrowed_raw_data/geo_distance_dat.csv
+# Inputs:  borrowed_raw_data/geo_distance_dat.csv
+#          final_data/trust_in_EU.xlsx
 #          final_data/early_leavers_from_edu.xlsx
 #          final_data/world_values_survey.xlsx
 #          final_data/anti_EU_votes.xlsx

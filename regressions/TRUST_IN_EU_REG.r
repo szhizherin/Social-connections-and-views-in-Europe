@@ -2,6 +2,7 @@
 # Inputs: final_data/trust_in_EU.xlsx 
 #         intermediate_data/SCI_matrix.xlsx
 #         intermediate_data/distance_matrix.xlsx
+#         intermediate_data/contiguity_matrix.xlsx
 # Outputs: -
 # Дата: 2021-03-24
 
@@ -61,7 +62,10 @@ for(i in 1:dim(sq_distance_matrix)[1]) {
 }
 sq_distance_W <- sq_distance_matrix / apply(sq_distance_matrix, 1, sum)
 
-
+# матрица на основе соседства
+contiguity_matrix <- xlsx_matrix_to_R("intermediate_data/contiguity_matrix.xlsx")
+contiguity_W <- contiguity_matrix / apply(contiguity_matrix, 1, sum) # нормировка (сумма по строке = 1)
+contiguity_W[is.na(contiguity_W)] <- 0 # устраняем последствия деления на ноль
 
 
 ##################################################################################################
@@ -89,6 +93,7 @@ formul_short <- Trust_in_EU ~ EU_friends_abroad +
 moran.mc(trust_in_EU$Trust_in_EU, mat2listw(SCI_W), nsim = 1000)
 moran.mc(trust_in_EU$Trust_in_EU, mat2listw(distance_W), nsim = 1000)
 moran.mc(trust_in_EU$Trust_in_EU, mat2listw(sq_distance_W), nsim = 1000)
+moran.mc(trust_in_EU$Trust_in_EU, mat2listw(contiguity_W), nsim = 1000, zero.policy = TRUE)
 
 
 # OLS-регрессии для сравнения спецификаций
@@ -103,10 +108,12 @@ summary(OLS_short)
 lm.LMtests(OLS_long, listw = mat2listw(SCI_W), test = "all")
 lm.LMtests(OLS_long, listw = mat2listw(distance_W), test = "all")
 lm.LMtests(OLS_long, listw = mat2listw(sq_distance_W), test = "all")
+lm.LMtests(OLS_long, listw = mat2listw(contiguity_W), test = "all", zero.policy = TRUE)
 
 lm.LMtests(OLS_short, listw = mat2listw(SCI_W), test = "all")
 lm.LMtests(OLS_short, listw = mat2listw(distance_W), test = "all")
 lm.LMtests(OLS_short, listw = mat2listw(sq_distance_W), test = "all")
+lm.LMtests(OLS_short, listw = mat2listw(contiguity_W), test = "all", zero.policy = TRUE)
 
 
 # SAR модели с матрицей SCI
@@ -123,6 +130,14 @@ summary(SAR_sq_distance_long, Nagelkerke = TRUE, signif.stars = TRUE)
 
 SAR_sq_distance_short <- lagsarlm(formul_short, data = trust_in_EU, listw = mat2listw(sq_distance_W))
 summary(SAR_sq_distance_short, Nagelkerke = TRUE, signif.stars = TRUE)
+
+
+# SAR модели с матрицей contiguity
+SAR_contiguity_long <- lagsarlm(formul_long, data = trust_in_EU, listw = mat2listw(contiguity_W), zero.policy = TRUE)
+summary(SAR_contiguity_long, Nagelkerke = TRUE, signif.stars = TRUE)
+
+SAR_contiguity_short <- lagsarlm(formul_short, data = trust_in_EU, listw = mat2listw(contiguity_W), zero.policy = TRUE)
+summary(SAR_contiguity_short, Nagelkerke = TRUE, signif.stars = TRUE)
 
 
 # прямые и непрямые эффекты

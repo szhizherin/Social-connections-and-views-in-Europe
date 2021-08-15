@@ -2,6 +2,7 @@
 # Inputs: final_data/anti_EU_votes.xlsx 
 #         intermediate_data/SCI_matrix_anti.xlsx
 #         intermediate_data/distance_matrix_anti.xlsx
+#         intermediate_data/contiguity_matrix_anti.xlsx
 # Outputs: -
 # Дата: 2021-03-24
 
@@ -61,7 +62,10 @@ for(i in 1:dim(sq_distance_matrix_anti)[1]) {
 }
 sq_distance_W <- sq_distance_matrix_anti / apply(sq_distance_matrix_anti, 1, sum)
 
-
+# матрица на основе соседства
+contiguity_matrix <- xlsx_matrix_to_R("intermediate_data/contiguity_matrix_anti.xlsx")
+contiguity_W <- contiguity_matrix / apply(contiguity_matrix, 1, sum) # нормировка (сумма по строке = 1)
+contiguity_W[is.na(contiguity_W)] <- 0 # устраняем последствия деления на ноль
 
 
 ##################################################################################################
@@ -89,6 +93,7 @@ formul_short <- Anti_EU_vote ~ EU_friends_abroad +
 moran.mc(anti_EU_votes$Anti_EU_vote, mat2listw(SCI_W), nsim = 1000)
 moran.mc(anti_EU_votes$Anti_EU_vote, mat2listw(distance_W), nsim = 1000)
 moran.mc(anti_EU_votes$Anti_EU_vote, mat2listw(sq_distance_W), nsim = 1000)
+moran.mc(anti_EU_votes$Anti_EU_vote, mat2listw(contiguity_W), nsim = 1000, zero.policy = TRUE)
 
 
 # OLS-регрессии для сравнения спецификаций
@@ -103,10 +108,12 @@ summary(OLS_short)
 lm.LMtests(OLS_long, listw = mat2listw(SCI_W), test = "all")
 lm.LMtests(OLS_long, listw = mat2listw(distance_W), test = "all")
 lm.LMtests(OLS_long, listw = mat2listw(sq_distance_W), test = "all")
+lm.LMtests(OLS_long, listw = mat2listw(contiguity_W), test = "all", zero.policy = TRUE)
 
 lm.LMtests(OLS_short, listw = mat2listw(SCI_W), test = "all")
 lm.LMtests(OLS_short, listw = mat2listw(distance_W), test = "all")
 lm.LMtests(OLS_short, listw = mat2listw(sq_distance_W), test = "all")
+lm.LMtests(OLS_short, listw = mat2listw(contiguity_W), test = "all", zero.policy = TRUE)
 
 
 # SAR модели с матрицей SCI
