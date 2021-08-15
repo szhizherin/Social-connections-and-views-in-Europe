@@ -44,6 +44,9 @@ docs/
 # translation temp files
 po/*~
 
+# Jupyter Notebook
+.ipynb_checkpoints
+
 # folders with publically available raw data
 raw_data/
 borrowed_raw_data/
