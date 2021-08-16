@@ -20,7 +20,7 @@
 * `SC_and_views_in_Europe.pdf` - текст работы
 * `Social_connections_and views_in_Europe_ENG.pdf` - английская версия текста работы
 
-Отметим, что в начале каждого скрипта указаны его Inputs и Outputs. В случае, когда в Inputs присутствует какой-либо файл из папок `raw_data` и `borrowed_raw_data`, скрипт не будет корректно работать, если не воспроизвести эти папки и их содержимое при помощи файла `data_sources_and_description.xlsx`.
+Отметим, что в начале каждого скрипта указаны его Inputs и Outputs. В случае, когда в Inputs присутствует какой-либо файл из папок `raw_data` и `borrowed_raw_data`, скрипт не будет корректно работать, если не воспроизвести эти папки и их содержимое при помощи файла `data_sources_and_description.xlsx`. Также мы готовы поделиться этими папками, если интересующиеся свяжутся с нами по электронной почте.
 
 ***
 
@@ -46,4 +46,4 @@ The repository has the following structure:
 * `SC_and_views_in_Europe.pdf` - paper text
 * `Social_connections_and views_in_Europe_ENG.pdf` - english version of paper text
 
-Note that at the beginning of each script its Inputs and Outputs are indicated. In the case when any file from the `raw_data` and `borrowed_raw_data` folders is present in Inputs, the script will not work correctly if you do not reproduce these folders and their contents using the `data_sources_and_description.xlsx` file.
+Note that at the beginning of each script its Inputs and Outputs are indicated. In the case when any file from the `raw_data` and `borrowed_raw_data` folders is present in Inputs, the script will not work correctly if you do not reproduce these folders and their contents using the `data_sources_and_description.xlsx` file. Also we are ready to share these folders if those interested will contact us via email. 
