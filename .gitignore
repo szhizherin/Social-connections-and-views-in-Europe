@@ -47,6 +47,9 @@ po/*~
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# Catboost
+predict_SCI/catboost_info/
+
 # folders with publically available raw data
 raw_data/
 borrowed_raw_data/
