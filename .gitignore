@@ -46,6 +46,7 @@ po/*~
 
 # Jupyter Notebook
 .ipynb_checkpoints
+predict_SCI/.log
 
 # Catboost
 predict_SCI/catboost_info/
