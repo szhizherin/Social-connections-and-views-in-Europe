@@ -60,7 +60,11 @@ raw_SCI <- read.table("raw_data/gadm1_nuts2_gadm1_nuts2_Aug2020.tsv", sep = '\t'
 # итоговый набор данных
 SCI_and_preferences <- preferences_and_SCI %>%
   inner_join(raw_SCI, by = c("user_loc" = "user_loc", "fr_loc" = "fr_loc"))
-  
+
+
+SCI_and_preferences <- SCI_and_preferences %>% 
+  distinct(across(colnames(SCI_and_preferences)[3:dim(SCI_and_preferences)[2]]), .keep_all = TRUE)
+
 
 # сохраним результат
 write.csv(SCI_and_preferences, "predict_SCI/SCI_and_preferences.csv")
