@@ -1,7 +1,9 @@
 # Цель: преобразовать набор данных wvs_data, выбрав нужные регионы
 # Inputs:  borrowed_raw_data/brookings_regress_dat.dta
 #          raw_data/wvs_data.xlsx
+#          raw_data/EU_preferences_renamed.xlsx
 # Outputs: intermediate_data/wvs_EU_data.xlsx
+#          intermediate_data/wvs_whole_EU_data.xlsx
 # Дата: 2021-03-12
 
 
@@ -122,7 +124,40 @@ for (i in 2:36) {
 write.xlsx(wvs_EU_grouped, file = "intermediate_data/wvs_EU_data.xlsx")
 
 
+# проделаем аналогичные преобразования для полного списка предпочтений WVS
+wvs_whole <- read_excel("raw_data/EU_preferences_renamed.xlsx")
+
+wvs_whole_EU <- wvs_whole %>% 
+  filter(is.element(`NUTS`, NUTS2_IDs_all[[1]]) | is.NUTS1_subregion(`NUTS`, NUTS1_IDs_all[[1]])) %>% 
+  select(-c("Pray_to_God_outside_of_religious_services_(EVS5)"))
 
 
+for (i in 1:dim(wvs_whole_EU)[1]) {
+  if (is.element(str_sub(wvs_whole_EU$`NUTS`[i], 1, 3), NUTS1_IDs_all[[1]])) {
+    wvs_whole_EU$`NUTS`[i] <- str_sub(wvs_whole_EU$`NUTS`[i], 1, 3)
+  }
+}
 
 
+wvs_whole_EU_grouped <- wvs_whole_EU %>% select(`NUTS`) %>% 
+  distinct()
+wvs_whole_EU_grouped <- wvs_whole_EU_grouped[order(wvs_whole_EU_grouped$`NUTS`),]
+
+
+for (i in 2:139) {
+  name <- colnames(wvs_whole_EU)[i]
+  batch <- wvs_whole_EU[, c(1, i)] %>% drop_na()
+  batch[, 2] <- batch[, 2]
+  
+  batch <- batch %>% group_by(`NUTS`) %>% summarise(UQ(rlang::sym(name)) := mean(UQ(rlang::sym(name))))
+  
+  wvs_whole_EU_grouped <- wvs_whole_EU_grouped %>% 
+    right_join(batch, by = c("NUTS" = "NUTS"))
+}
+
+
+for (i in 2:139) {
+  wvs_whole_EU_grouped[, i] <- wvs_whole_EU_grouped[, i] / max(wvs_whole_EU_grouped[, i])
+}
+
+write.xlsx(wvs_whole_EU_grouped, file = "intermediate_data/wvs_whole_EU_data.xlsx")

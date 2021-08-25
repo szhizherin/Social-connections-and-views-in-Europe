@@ -4,11 +4,13 @@
 #          borrowed_raw_data/cluster_groups.csv
 #          intermediate_data/education_pref.xlsx
 #          intermediate_data/wvs_EU_data.xlsx
+#          intermediate_data/wvs_whole_EU_data.xlsx
 # Outputs: final_data/trust_in_EU.xlsx
 #          final_data/anti_EU_votes.xlsx
 #          final_data/early_leavers_from_edu.xlsx
 #          final_data/primary_secondary_participation.xlsx
 #          final_data/world_values_survey.xlsx
+#          final_data/wvs_whole.xlsx
 # Дата: 2021-03-18
 
 
@@ -206,5 +208,18 @@ world_values_survey <- wvs_EU_data %>% rename(NUTS_ID = `NUTS-2`) %>%
 write.xlsx(world_values_survey, file = "final_data/world_values_survey.xlsx")
 
 
+# данные по всем предпочтениям WVS
+wvs_whole_EU_data <- read_excel("intermediate_data/wvs_whole_EU_data.xlsx") %>% 
+  select(-c(1))
 
+control_vars <- rbind(trust_in_EU %>% select(-c(Trust_in_EU)),
+                      anti_EU_votes %>% select(-c(extreme_per, extreme_perel,
+                                                  extreme_perer, extreme_perp, Anti_EU_vote))) %>% distinct()
+wvs_whole <- wvs_whole_EU_data %>% rename(NUTS_ID = `NUTS`) %>% 
+  left_join(control_vars, by = c("NUTS_ID" = "NUTS_ID")) %>% 
+  select(-c("...3", "...7"))
 
+wvs_whole <- cbind(wvs_whole, world_values_survey %>% select(c(Health)))
+wvs_whole <- cbind(wvs_whole, world_values_survey %>% select(starts_with("Member_control")))
+
+write.xlsx(wvs_whole, file = "final_data/wvs_whole.xlsx")
