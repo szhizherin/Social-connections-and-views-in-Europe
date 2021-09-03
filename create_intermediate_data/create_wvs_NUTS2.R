@@ -1,10 +1,12 @@
-# Цель: преобразовать набор данных wvs_data, выбрав нужные регионы
+# Цель: преобразовать наборы данных WVS и EVS, выбрав нужные регионы
 # Inputs:  borrowed_raw_data/brookings_regress_dat.dta
 #          raw_data/wvs_data.xlsx
 #          raw_data/EU_preferences_renamed.xlsx
+#          raw_data/ZA7503_v2-0-0.dta
 # Outputs: intermediate_data/wvs_EU_data.xlsx
 #          intermediate_data/wvs_whole_EU_data.xlsx
-# Дата: 2021-03-12
+#          TODO: вписать директорию(и)
+# Дата: 2021-09-02
 
 
 
@@ -124,7 +126,10 @@ for (i in 2:36) {
 write.xlsx(wvs_EU_grouped, file = "intermediate_data/wvs_EU_data.xlsx")
 
 
+
+
 # проделаем аналогичные преобразования для полного списка предпочтений WVS
+
 wvs_whole <- read_excel("raw_data/EU_preferences_renamed.xlsx")
 
 wvs_whole_EU <- wvs_whole %>% 
@@ -147,7 +152,6 @@ wvs_whole_EU_grouped <- wvs_whole_EU_grouped[order(wvs_whole_EU_grouped$`NUTS`),
 for (i in 2:139) {
   name <- colnames(wvs_whole_EU)[i]
   batch <- wvs_whole_EU[, c(1, i)] %>% drop_na()
-  batch[, 2] <- batch[, 2]
   
   batch <- batch %>% group_by(`NUTS`) %>% summarise(UQ(rlang::sym(name)) := mean(UQ(rlang::sym(name))))
   
@@ -161,3 +165,72 @@ for (i in 2:139) {
 }
 
 write.xlsx(wvs_whole_EU_grouped, file = "intermediate_data/wvs_whole_EU_data.xlsx")
+
+
+
+
+# наконец, отберём переменные из более ранней волны EVS
+
+evs_data <- read_dta("raw_data/ZA7503_v2-0-0.dta")
+
+evs_data_EU_2008 <- evs_data %>% 
+  filter(S002EVS == 4) %>% 
+  filter(is.element(X048b_n2, NUTS2_IDs_all[[1]]) | is.NUTS1_subregion(X048b_n2, NUTS1_IDs_all[[1]])) 
+
+
+for (name in colnames(evs_data_EU_2008)) {
+  tt <- evs_data_EU_2008[paste(name)]
+  tt[tt == -1] <- NA
+  tt[tt == -2] <- NA
+  tt[tt == -3] <- NA
+  tt[tt == -4] <- NA
+  tt[tt == -5] <- NA
+  evs_data_EU_2008[paste(name)] <- tt
+}
+
+evs_data_EU_2008 <- evs_data_EU_2008[colSums(evs_data_EU_2008 %>% is.na()) < 3000]
+evs_data_EU_2008 <- evs_data_EU_2008[, c(31:68,
+                                         84:118,
+                                         120:152,
+                                         155:204,
+                                         207,
+                                         214:247,
+                                         252:259,
+                                         285)]
+
+
+for (i in 1:dim(evs_data_EU_2008)[1]) {
+  if (is.element(str_sub(evs_data_EU_2008$X048b_n2[i], 1, 3), NUTS1_IDs_all[[1]])) {
+    evs_data_EU_2008$X048b_n2[i] <- str_sub(evs_data_EU_2008$X048b_n2[i], 1, 3)
+  }
+}
+
+
+evs_EU_grouped <- evs_data_EU_2008 %>% select(X048b_n2) %>% 
+  distinct()
+evs_EU_grouped <- evs_EU_grouped[order(evs_data_EU_2008$X048b_n2),]
+
+
+for (i in 1:199) {
+  name <- colnames(evs_data_EU_2008)[i]
+  batch <- evs_data_EU_2008[, c(200, i)] %>% drop_na()
+  
+  batch <- batch %>% group_by(X048b_n2) %>% summarise(UQ(rlang::sym(name)) := mean(UQ(rlang::sym(name))))
+  
+  evs_EU_grouped <- evs_EU_grouped %>% 
+    right_join(batch, by = c("X048b_n2" = "X048b_n2"))
+}
+
+
+evs_EU_grouped <- evs_EU_grouped %>% drop_na()
+
+
+for (i in 2:200) {
+  evs_EU_grouped[, i] <- evs_EU_grouped[, i] / max(evs_EU_grouped[, i])
+}
+
+
+write.xlsx(evs_EU_grouped, file = "intermediate_data/evs_EU_data_2008.xlsx")
+
+
+
