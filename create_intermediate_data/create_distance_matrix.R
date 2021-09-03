@@ -5,12 +5,14 @@
 #          final_data/world_values_survey.xlsx
 #          final_data/anti_EU_votes.xlsx
 #          final_data/primary_secondary_participation.xlsx
+#          intermediate_data/evs_EU_data_2008.xlsx
 # Outputs: intermediate_data/distance_matrix.xlsx
 #          intermediate_data/distance_matrix_el.xlsx
 #          intermediate_data/distance_matrix_wvs.xlsx
 #          intermediate_data/distance_matrix_anti.xlsx
 #          intermediate_data/distance_matrix_ps.xlsx
-# Дата: 2021-03-18
+#          intermediate_data/distance_matrix_evs_2008.xlsx
+# Дата: 2021-09-03
 
 
 
@@ -304,4 +306,58 @@ View(distance_matrix_ps)
 write.xlsx(distance_matrix_ps, file = "intermediate_data/distance_matrix_ps.xlsx")
 
 
+######################################################################################################
+
+
+# аналогичным образом создадим матрицу для другого набора данных
+european_values_survey <- read_excel("intermediate_data/evs_EU_data_2008.xlsx") %>% 
+  select(-c(1)) %>% rename(NUTS_ID = "X048b_n2")
+
+
+# все используемые коды NUTS2 (в этом наборе данных другое территориальное деление)
+NUTS2_IDs <- european_values_survey %>%
+  filter(nchar(NUTS_ID) == 4) %>% 
+  select(NUTS_ID)
+
+
+# все используемые коды NUTS1 (в этом наборе данных другое территориальное деление)
+NUTS1_IDs <- european_values_survey %>%
+  filter(nchar(NUTS_ID) == 3) %>% 
+  select(NUTS_ID)
+
+
+# выберем строки, содержащие все нужные коды (может выполняться несколько минут)
+for_distance_matrix <- raw_distance %>% 
+  filter((is.element(user_loc, NUTS2_IDs[[1]]) | is.NUTS1_subregion(user_loc, NUTS1_IDs[[1]])) & 
+           (is.element(fr_loc, NUTS2_IDs[[1]]) | is.NUTS1_subregion(fr_loc, NUTS1_IDs[[1]])))
+
+
+# сгруппируем нужные NUTS2 регионы в NUTS1
+for_distance_matrix_grouped <- for_distance_matrix
+# преобразуем названия нужных NUTS2 в NUTS1
+for (i in 1:dim(for_distance_matrix_grouped)[1]) {
+  if (is.element(str_sub(for_distance_matrix_grouped$user_loc[i], 1, 3), NUTS1_IDs[[1]])) {
+    for_distance_matrix_grouped$user_loc[i] <- str_sub(for_distance_matrix_grouped$user_loc[i], 1, 3)
+  }
+  if (is.element(str_sub(for_distance_matrix_grouped$fr_loc[i], 1, 3), NUTS1_IDs[[1]])) {
+    for_distance_matrix_grouped$fr_loc[i] <- str_sub(for_distance_matrix_grouped$fr_loc[i], 1, 3)
+  }
+}
+# просуммируем одинаковые строки по distance
+for_distance_matrix_grouped <- for_distance_matrix_grouped %>% 
+  group_by(user_loc) %>% 
+  group_by(fr_loc, .add = TRUE) %>% 
+  summarise(user_loc = user_loc[1], fr_loc = fr_loc[1], distance = mean(distance)) %>% 
+  ungroup()
+
+#наконец, матрица
+distance_matrix_evs <- tapply(for_distance_matrix_grouped$distance, for_distance_matrix_grouped[c("user_loc", "fr_loc")], mean)
+for(i in 1:dim(distance_matrix_evs)[1]) {
+  distance_matrix_evs[i, i] <- 0
+}
+View(distance_matrix_evs)
+
+
+# сохраним результат
+write.xlsx(distance_matrix_evs, file = "intermediate_data/distance_matrix_evs_2008.xlsx")
 
