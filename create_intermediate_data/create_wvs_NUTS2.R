@@ -5,8 +5,8 @@
 #          raw_data/ZA7503_v2-0-0.dta
 # Outputs: intermediate_data/wvs_EU_data.xlsx
 #          intermediate_data/wvs_whole_EU_data.xlsx
-#          TODO: вписать директорию(и)
-# Дата: 2021-09-02
+#          intermediate_data/evs_EU_data_2008.xlsx
+# Дата: 2021-09-03
 
 
 

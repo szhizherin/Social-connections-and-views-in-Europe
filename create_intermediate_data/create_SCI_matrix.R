@@ -5,12 +5,14 @@
 #          final_data/world_values_survey.xlsx
 #          final_data/anti_EU_votes.xlsx
 #          final_data/primary_secondary_participation.xlsx
+#          intermediate_data/evs_EU_data_2008.xlsx
 # Outputs: intermediate_data/SCI_matrix.xlsx
 #          intermediate_data/SCI_matrix_el.xlsx
 #          intermediate_data/SCI_matrix_wvs.xlsx
 #          intermediate_data/SCI_matrix_anti.xlsx
 #          intermediate_data/SCI_matrix_ps.xlsx
-# Дата: 2021-03-18
+#          intermediate_data/SCI_matrix_evs_2008.xlsx
+# Дата: 2021-09-03
 
 
 
@@ -440,6 +442,116 @@ View(SCI_matrix_ps)
 
 # сохраним результат
 write.xlsx(SCI_matrix_ps, file = "intermediate_data/SCI_matrix_ps.xlsx")
+
+
+######################################################################################################
+
+
+# аналогичным образом создадим матрицу для другого набора данных
+european_values_survey <- read_excel("intermediate_data/evs_EU_data_2008.xlsx") %>% 
+  select(-c(1)) %>% rename(NUTS_ID = "X048b_n2")
+
+
+# все используемые коды NUTS2 (в этом наборе данных другое территориальное деление)
+NUTS2_IDs <- european_values_survey %>%
+  filter(nchar(NUTS_ID) == 4) %>% 
+  select(NUTS_ID)
+
+
+# все используемые коды NUTS1 (в этом наборе данных другое территориальное деление)
+NUTS1_IDs <- european_values_survey %>%
+  filter(nchar(NUTS_ID) == 3) %>% 
+  select(NUTS_ID)
+
+
+# выберем строки, содержащие все нужные коды (может выполняться около 15-20 минут)
+for_SCI_matrix <- raw_SCI %>% 
+  filter((is.element(user_loc, NUTS2_IDs[[1]]) | is.NUTS1_subregion(user_loc, NUTS1_IDs[[1]])) & 
+           (is.element(fr_loc, NUTS2_IDs[[1]]) | is.NUTS1_subregion(fr_loc, NUTS1_IDs[[1]])))
+
+
+# данные для взвешивания SCI по населению
+EU_regions_population_2008 <- read_excel("raw_data/EU_regions_population_2008.xlsx", 
+                                         sheet = "Sheet 1", col_types = c("text", 
+                                                                          "skip", "numeric", "skip"), 
+                                         skip = 10) %>% 
+  rename(NUTS = "GEO (Codes)", population = ...2)
+
+
+# выберем строки, содержащие все нужные коды и создадим популяционные веса
+EU_regions_population_2008 <- EU_regions_population_2008 %>% 
+  filter(is.element(NUTS, NUTS2_IDs[[1]]) | (is.NUTS1_subregion(NUTS, NUTS1_IDs[[1]]) & !is.element(NUTS, NUTS1_IDs[[1]])))
+
+EU_regions_population_2008$group <- EU_regions_population_2008$NUTS %>% str_sub(1, 3)
+
+EU_regions_population_2008 <- EU_regions_population_2008 %>% 
+  group_by(group) %>% 
+  summarise(NUTS = NUTS, population_share = population / sum(population)) %>% 
+  ungroup()
+
+for (i in 1:dim(EU_regions_population_2008)[1]) {
+  if (!is.element(EU_regions_population_2008$group[i], NUTS1_IDs[[1]])) {
+    EU_regions_population_2008$population_share[i] <- 1
+  }
+}
+
+
+# назначим популяционные веса парам регионов
+for_SCI_matrix$population_weight <- NA
+for (i in 1:dim(for_SCI_matrix)[1]) {
+  u_loc <- for_SCI_matrix$user_loc[i]
+  f_loc <- for_SCI_matrix$fr_loc[i]
+  if (u_loc %in% c("DED4", "DED5") & f_loc %in% c("DED4", "DED5")) {
+    for_SCI_matrix$population_weight[i] <- 
+      1 * 
+      1
+  } else if (f_loc %in% c("DED4", "DED5")) {
+    for_SCI_matrix$population_weight[i] <- 
+      (EU_regions_population_2008 %>% filter(NUTS == u_loc))$population_share * 
+      1
+  } else if (u_loc %in% c("DED4", "DED5")) {
+    for_SCI_matrix$population_weight[i] <- 
+      1 * 
+      (EU_regions_population_2008 %>% filter(NUTS == f_loc))$population_share
+  } else {
+    for_SCI_matrix$population_weight[i] <- 
+      (EU_regions_population_2008 %>% filter(NUTS == u_loc))$population_share * 
+      (EU_regions_population_2008 %>% filter(NUTS == f_loc))$population_share
+  }
+}
+
+for_SCI_matrix$weighted_sci <- for_SCI_matrix$scaled_sci * for_SCI_matrix$population_weight
+
+
+# сгруппируем нужные NUTS2 регионы в NUTS1
+for_SCI_matrix_grouped <- for_SCI_matrix
+# преобразуем названия нужных NUTS2 в NUTS1
+for (i in 1:dim(for_SCI_matrix_grouped)[1]) {
+  if (is.element(str_sub(for_SCI_matrix_grouped$user_loc[i], 1, 3), NUTS1_IDs[[1]])) {
+    for_SCI_matrix_grouped$user_loc[i] <- str_sub(for_SCI_matrix_grouped$user_loc[i], 1, 3)
+  }
+  if (is.element(str_sub(for_SCI_matrix_grouped$fr_loc[i], 1, 3), NUTS1_IDs[[1]])) {
+    for_SCI_matrix_grouped$fr_loc[i] <- str_sub(for_SCI_matrix_grouped$fr_loc[i], 1, 3)
+  }
+}
+
+
+# произведём корректную группировку по NUTS1 регионам
+for_SCI_matrix_grouped <- for_SCI_matrix_grouped %>% group_by(user_loc, fr_loc) %>% 
+  summarise(user_loc = user_loc[1], fr_loc = fr_loc[1], sci = sum(weighted_sci)) %>% 
+  ungroup()
+
+
+# наконец, матрица
+SCI_matrix <- tapply(for_SCI_matrix_grouped$sci, for_SCI_matrix_grouped[c("user_loc", "fr_loc")], mean)
+for(i in 1:dim(SCI_matrix)[1]) {
+  SCI_matrix[i, i] <- 0
+}
+View(SCI_matrix)
+
+
+# сохраним результат
+write.xlsx(SCI_matrix, file = "intermediate_data/SCI_matrix_evs_2008.xlsx")
 
 
 
