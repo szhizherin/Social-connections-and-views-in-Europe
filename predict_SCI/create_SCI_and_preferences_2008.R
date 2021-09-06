@@ -14,6 +14,7 @@ library(tidyverse)
 library(readxl)
 library(readr)
 library(data.table)
+library(regions)
 
 
 # данные о предпочтениях
@@ -23,6 +24,11 @@ EU_preferences <- evs_data %>%
   filter(S002EVS == 4) %>% 
   rename(NUTS = "X048b_n2")
 
+# перекодируем для корректного совмещения с контрольными переменными
+recode <- recode_nuts(EU_preferences["NUTS"], "NUTS", 2016)$code_2016
+EU_preferences$NUTS <- recode
+
+EU_preferences <- EU_preferences %>% filter(!is.na(NUTS))
 
 for (name in colnames(EU_preferences)) {
   tt <- EU_preferences[paste(name)]
@@ -35,15 +41,15 @@ for (name in colnames(EU_preferences)) {
 }
 
 
-EU_preferences <- EU_preferences[colSums(EU_preferences %>% is.na()) < 6628] # 10%
-EU_preferences <- EU_preferences[, c(34:55,
-                                     87:120,
-                                     122:154,
-                                     157:201,
-                                     204,
-                                     211:244,
-                                     250:257,
-                                     282)]
+EU_preferences <- EU_preferences[colSums(EU_preferences %>% is.na()) < 4018] # 10%
+EU_preferences <- EU_preferences[, c(34:56,
+                                     87:121,
+                                     123:155,
+                                     158:207,
+                                     210,
+                                     217:250,
+                                     256:263,
+                                     288)]
 
 # сгруппируем по NUTS2 регионам
 gr_mean <- function(x) mean(x, na.rm = TRUE)
