@@ -477,7 +477,6 @@ EU_regions_population_2008 <- read_excel("raw_data/EU_regions_population_2008.xl
                                          skip = 10) %>% 
   rename(NUTS = "GEO (Codes)", population = ...2)
 
-
 # выберем строки, содержащие все нужные коды и создадим популяционные веса
 EU_regions_population_2008 <- EU_regions_population_2008 %>% 
   filter(is.element(NUTS, NUTS2_IDs[[1]]) | (is.NUTS1_subregion(NUTS, NUTS1_IDs[[1]]) & !is.element(NUTS, NUTS1_IDs[[1]])))
@@ -497,19 +496,20 @@ for (i in 1:dim(EU_regions_population_2008)[1]) {
 
 
 # назначим популяционные веса парам регионов
+ones <- c("DED4", "DED5", "PL71", "PL72", "PL81", "PL82", "PL84")
 for_SCI_matrix$population_weight <- NA
 for (i in 1:dim(for_SCI_matrix)[1]) {
   u_loc <- for_SCI_matrix$user_loc[i]
   f_loc <- for_SCI_matrix$fr_loc[i]
-  if (u_loc %in% c("DED4", "DED5") & f_loc %in% c("DED4", "DED5")) {
+  if (u_loc %in% ones & f_loc %in% ones) {
     for_SCI_matrix$population_weight[i] <- 
       1 * 
       1
-  } else if (f_loc %in% c("DED4", "DED5")) {
+  } else if (f_loc %in% ones) {
     for_SCI_matrix$population_weight[i] <- 
       (EU_regions_population_2008 %>% filter(NUTS == u_loc))$population_share * 
       1
-  } else if (u_loc %in% c("DED4", "DED5")) {
+  } else if (u_loc %in% ones) {
     for_SCI_matrix$population_weight[i] <- 
       1 * 
       (EU_regions_population_2008 %>% filter(NUTS == f_loc))$population_share
@@ -552,8 +552,4 @@ View(SCI_matrix)
 
 # сохраним результат
 write.xlsx(SCI_matrix, file = "intermediate_data/SCI_matrix_evs_2008.xlsx")
-
-
-
-
 
