@@ -384,6 +384,3 @@ View(contiguity_matrix)
 # сохраним результат
 write.xlsx(contiguity_matrix, file = "intermediate_data/contiguity_matrix_evs_2008.xlsx")
 
-
-
-
