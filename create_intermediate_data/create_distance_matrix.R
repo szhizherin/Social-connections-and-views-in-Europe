@@ -41,12 +41,12 @@ is.NUTS1_subregion <- function(region, NUTS1) {
 }
 
 
-eurobarometer_regress_dat <- read_excel("final_data/trust_in_EU.xlsx") %>% 
-  select(-1)
-
-
 # данные для пространственной матрицы на основе расстояний
 raw_distance <- read_csv("borrowed_raw_data/geo_distance_dat.csv")
+
+
+eurobarometer_regress_dat <- read_excel("final_data/trust_in_EU.xlsx") %>% 
+  select(-1)
 
 
 # все используемые коды NUTS2
@@ -343,6 +343,7 @@ for (i in 1:dim(for_distance_matrix_grouped)[1]) {
     for_distance_matrix_grouped$fr_loc[i] <- str_sub(for_distance_matrix_grouped$fr_loc[i], 1, 3)
   }
 }
+
 # просуммируем одинаковые строки по distance
 for_distance_matrix_grouped <- for_distance_matrix_grouped %>% 
   group_by(user_loc) %>% 
