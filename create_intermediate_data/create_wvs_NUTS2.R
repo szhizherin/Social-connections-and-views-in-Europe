@@ -15,6 +15,7 @@ library(tidyverse)
 library(xlsx)
 library(readxl)
 library(haven)
+library(regions)
 
 
 # функция для выбора NUTS2 тех регионов, которые NUTS1 в brookings_regress_dat
@@ -174,8 +175,15 @@ write.xlsx(wvs_whole_EU_grouped, file = "intermediate_data/wvs_whole_EU_data.xls
 evs_data <- read_dta("raw_data/ZA7503_v2-0-0.dta")
 
 evs_data_EU_2008 <- evs_data %>% 
-  filter(S002EVS == 4) %>% 
-  filter(is.element(X048b_n2, NUTS2_IDs_all[[1]]) | is.NUTS1_subregion(X048b_n2, NUTS1_IDs_all[[1]])) 
+  filter(S002EVS == 4) 
+
+# перекодируем для корректного совмещения с контрольными переменными
+recode <- recode_nuts(evs_data_EU_2008["X048b_n2"], "X048b_n2", 2016)$code_2016
+evs_data_EU_2008$X048b_n2 <- recode
+
+evs_data_EU_2008 <- evs_data_EU_2008 %>%
+  filter(!is.na(X048b_n2)) %>% 
+  filter(is.element(X048b_n2, NUTS2_IDs_all[[1]]) | is.NUTS1_subregion(X048b_n2, NUTS1_IDs_all[[1]]))
 
 
 for (name in colnames(evs_data_EU_2008)) {
@@ -189,14 +197,14 @@ for (name in colnames(evs_data_EU_2008)) {
 }
 
 evs_data_EU_2008 <- evs_data_EU_2008[colSums(evs_data_EU_2008 %>% is.na()) < 3000]
-evs_data_EU_2008 <- evs_data_EU_2008[, c(31:68,
-                                         84:118,
-                                         120:152,
-                                         155:204,
-                                         207,
-                                         214:247,
-                                         252:259,
-                                         285)]
+evs_data_EU_2008 <- evs_data_EU_2008[, c(33:70,
+                                         85:119,
+                                         121:153,
+                                         156:199,
+                                         203,
+                                         210:242,
+                                         248:255,
+                                         279)]
 
 
 for (i in 1:dim(evs_data_EU_2008)[1]) {
@@ -211,9 +219,9 @@ evs_EU_grouped <- evs_data_EU_2008 %>% select(X048b_n2) %>%
 evs_EU_grouped <- evs_EU_grouped[order(evs_data_EU_2008$X048b_n2),]
 
 
-for (i in 1:199) {
+for (i in 1:192) {
   name <- colnames(evs_data_EU_2008)[i]
-  batch <- evs_data_EU_2008[, c(200, i)] %>% drop_na()
+  batch <- evs_data_EU_2008[, c(193, i)] %>% drop_na()
   
   batch <- batch %>% group_by(X048b_n2) %>% summarise(UQ(rlang::sym(name)) := mean(UQ(rlang::sym(name))))
   
@@ -225,12 +233,10 @@ for (i in 1:199) {
 evs_EU_grouped <- evs_EU_grouped %>% drop_na()
 
 
-for (i in 2:200) {
+for (i in 2:193) {
   evs_EU_grouped[, i] <- evs_EU_grouped[, i] / max(evs_EU_grouped[, i])
 }
 
 
 write.xlsx(evs_EU_grouped, file = "intermediate_data/evs_EU_data_2008.xlsx")
-
-
 
