@@ -2,7 +2,8 @@
 # Inputs:  raw_data/EU_preferences_renamed.xlsx
 #          borrowed_raw_data/geo_distance_dat.csv
 # Outputs: predict_SCI/distance_and_preferences.csv
-# Дата: 2021-09-06
+#          predict_SCI/distance_and_sum_preferences.csv
+# Дата: 2021-09-07
 
 
 
@@ -78,4 +79,38 @@ distance_and_preferences <- preferences_and_SCI %>%
 
 # сохраним результат
 write.csv(distance_and_preferences, "predict_SCI/distance_and_preferences.csv")
+
+
+##################################################################################################
+
+
+# создадим суммы предпочтений для пар регионов
+preferences_and_SCI <- CJ(user_loc = NUTS_IDs, fr_loc = NUTS_IDs) %>% 
+  filter(user_loc != fr_loc)
+
+preferences_and_SCI <- preferences_and_SCI[leave,]
+
+for (name in colnames(EU_preferences_grouped)[2:dim(EU_preferences_grouped)[2]]) {
+  preferences_and_SCI[, paste(name)] <- 0
+}
+
+
+for (i in 1:dim(preferences_and_SCI)[1]) {
+  u_loc <- preferences_and_SCI$user_loc[i]
+  f_loc <- preferences_and_SCI$fr_loc[i]
+  
+  preferences_and_SCI[i, 3:dim(preferences_and_SCI)[2]] <- 
+      (EU_preferences_grouped %>% filter(NUTS == paste(u_loc)))[1, 2:dim(EU_preferences_grouped)[2]] +
+      (EU_preferences_grouped %>% filter(NUTS == paste(f_loc)))[1, 2:dim(EU_preferences_grouped)[2]]
+
+  print(i)
+}
+
+# итоговый набор данных
+distance_and_preferences <- preferences_and_SCI %>%
+  inner_join(raw_distance, by = c("user_loc" = "user_loc", "fr_loc" = "fr_loc"))
+
+
+# сохраним результат
+write.csv(distance_and_preferences, "predict_SCI/distance_and_sum_preferences.csv")
 
