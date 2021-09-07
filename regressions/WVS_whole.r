@@ -1,8 +1,9 @@
 # Цель: регрессионный анализ датасета wvs_whole.xlsx
-# Inputs: final_data/wvs_whole.xlsx
-#         intermediate_data/SCI_matrix_wvs.xlsx
-#         intermediate_data/distance_matrix_wvs.xlsx
-# Outputs: -
+# Inputs:  final_data/wvs_whole.xlsx
+#          intermediate_data/SCI_matrix_wvs.xlsx
+#          intermediate_data/distance_matrix_wvs.xlsx
+#          intermediate_data/contiguity_matrix_wvs.xlsx
+# Outputs: regressions/WVS_models_summary.xlsx
 # Дата: 2021-08-21
 
 
@@ -135,6 +136,9 @@ WVS_models_summary <- cbind(count(WVS_models, d)$n,
 colnames(WVS_models_summary) <- c("distance", "distance squared",
                                   "contiguity", "SCI")
 rownames(WVS_models_summary) <- c("OLS", "SAR", "SEM")
+WVS_models_summary <- WVS_models_summary / 139
+
+write.xlsx(WVS_models_summary, file = "regressions/WVS_models_summary.xlsx")
 
 All_OLS <- filter(WVS_models, d == "OLS" & d_sq == "OLS" &
                         cont == "OLS" & SCI == "OLS")
