@@ -6,6 +6,7 @@
 #          borrowed_raw_data/cluster_groups.csv
 # Outputs: plots/EU_trust_levels.png
 #          plots/anti_EU_votes_levels.png
+#          plots/anti_EU_votes_levels_black_and_white.png
 #          plots/early_edu_leavers.png
 #          plots/19_clusters.png
 # Дата: 2021-03-27
@@ -166,6 +167,19 @@ ggplot(data = map_data_br) +
 
 ggsave("plots/anti_EU_votes_levels.png", last_plot(), width=8, height=5.75, units="in", dpi=500)
 
+
+# чёрно-белая карта доли голосов за anti-EU партии
+ggplot(data = map_data_br) +
+  geom_sf(aes(fill = vote_levels), size=0.3, col="#606060") +
+  geom_sf(data = map_data_br$geometry, fill=NA, color="black", size=0.3) +
+  theme_void() +
+  scale_fill_grey(na.value = "white") + 
+  coord_sf(xlim = c(-31, 60), ylim = c(34.25, 71), expand = FALSE) +
+  theme(legend.position = c(0.9, 0.55)) +
+  labs(fill = "Anti EU voting levels \nin different regions")
+
+
+ggsave("plots/anti_EU_votes_levels_black_and_white.png", last_plot(), width=8, height=5.75, units="in", dpi=500)
 
 ##############################################################################################
 
